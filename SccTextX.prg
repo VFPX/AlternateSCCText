@@ -1,6 +1,8 @@
-*+--------------------------------------------------------------------------
-*
-*	File:		SCCTEXT.PRG
+****************************************************************************
+*	File:		SccTextX.PRG
+****************************************************************************
+* Enhanced version for VFPX, works with VFP9.x only
+****************************************************************************
 *
 *	Copyright:	(c) 1995, Microsoft Corporation.
 *				All Rights Reserved.
@@ -53,23 +55,27 @@
 *										VFP's standard methods and properties will be first,
 *										not mixed with custom methods and properties
 *				30-Oct-02	BethM		Fixed a Problem in Routine SortMethods()
-*				31-Oct-02	wOOdy		changed all this.JUST*, this.ADDBS, this.FORCEEXT 
-*										functions to the VFP internal routines; revised 
+*				31-Oct-02	wOOdy		changed all this.JUST*, this.ADDBS, this.FORCEEXT
+*										functions to the VFP internal routines; revised
 *										Thermometer code to use two container instead of nine
-*										shapes; Reworked the HexStr2BinStr function for faster 
-*										and cleaner code. Overall Code cleanups (removed 
-*										unnecessary "m.", sorted and indented code,  etc), 
+*										shapes; Reworked the HexStr2BinStr function for faster
+*										and cleaner code. Overall Code cleanups (removed
+*										unnecessary "m.", sorted and indented code,  etc),
 *										fixed SCC_DBC_MEMO define error.
-*				01-Nov-02	wOOdy		Spotted the cause for the "BugBug" workarounds in 
-*										proc "CreateTable"; Killed bug, cleaned code and got 
+*				01-Nov-02	wOOdy		Spotted the cause for the "BugBug" workarounds in
+*										proc "CreateTable"; Killed bug, cleaned code and got
 *										rid of proc "GetReportStructure"
 *				12-Nov-02	M.Winhard	Changed #defines for DBC file extensions to DC*;
 *										added #defines for DBF file extensions as DB*
-*				31-Nov-02	F.Camp		Fixed the sort order of contained objects in VCX and SCX 
+*				31-Nov-02	F.Camp		Fixed the sort order of contained objects in VCX and SCX
 *										files so that they are created straight after the parent.
 *										Header files will be created first, then the other controls
 *										in a column of a grid
-*---------------------------------------------------------------------------
+*				01-May-08	wOOdy		Changed the name from PL_SCCTEXT to SccTextX and
+*										added it to codeplex.com/vfpx
+*
+*************************************************************************
+
 
 #include "foxpro.h"
 
@@ -87,12 +93,37 @@
 * be large and time-consuming to convert.
 #DEFINE C_WRITECHECKSUMS .T.
 
-#DEFINE SCCTEXTVER_LOC "SCCTEXT Version 4.0.0.2"	&& this is still the original version number from MS!
+#DEFINE SCCTEXTVER_LOC "SccTextX Version 1.0.0.1"	
 #DEFINE ALERTTITLE_LOC "Microsoft Visual FoxPro"
 
 
-* auto-localizing for german users, english strings for the rest of us
-#IF VERSION(3) == "49"	&& german
+* localizing for french, german, english strings for the rest 
+#IF VERSION(3) == "33"	&& French
+	#DEFINE ERRORMESSAGE_LOC "Erreur n°" + TRANSFORM(m.nError) + " dans " + m.cMethod + " (" + TRANSFORM(m.nLine) + "): " + m.cMessage
+	#DEFINE ERRORTITLE_LOC "Erreur"
+	#DEFINE ERR_ALERTCONTINUE_LOC "Continuer ?"
+	#DEFINE ERR_BADVERSION_LOC "Mauvaise version de SCCTEXT."
+	#DEFINE ERR_BIN2TEXTNOTSUPPORTED_LOC "La génération de fichier Texte n'est pas supporté pour le type de fichier '&cType'."
+	#DEFINE ERR_FCREATE_LOC "FCREATE() erreur : "
+	#DEFINE ERR_FIELDLISTTOOLONG_LOC "Liste de champs trop longue."
+	#DEFINE ERR_FILENOTFOUND_LOC "Fichier non trouvé : "
+	#DEFINE ERR_FOPEN_LOC "FOPEN() Erreur: "
+	#DEFINE ERR_FOXERROR_11_LOC "Une valeur, un type ou le nombre des paramètres de l'appel de cette fonction est incorrect."
+	#DEFINE ERR_INVALIDREVERSE_LOC "Paramètre REVERSE non valide."
+	#DEFINE ERR_INVALIDTEXTNAME_LOC "Paramètre TEXTNAME non valide."
+	#DEFINE ERR_LINENOACTION_LOC "Pas d'action effectuée sur cette ligne : "
+	#DEFINE ERR_MAXBINLEN_LOC "MAXBINLEN doit être un multiple de 8. Programme arreté."
+	#DEFINE ERR_NOTABLE_LOC "Un nom de table est requit."
+	#DEFINE ERR_NOTEXTFILE_LOC "Le nom du fichier texte est requit pour créer une table."
+	#DEFINE ERR_OVERWRITEREADONLY_LOC "Le fichier &cParameter1 est en lecture seule. L'écraser ?"
+	#DEFINE ERR_TEXT2BINNOTSUPPORTED_LOC "La génération du fichier binaire n'est pas supporté pour le type '&cType' files."
+	#DEFINE ERR_UNSUPPORTEDFIELDTYPE_LOC "Type de champ non supporté : "
+	#DEFINE ERR_UNSUPPORTEDFILETYPE_LOC "Type de fichier non supporté : "
+	* Used by the thermometer
+	#DEFINE C_BINARYCONVERSION_LOC	"Conversion des données binaires : &cBinaryProgress.%"
+	#DEFINE C_THERMCOMPLETE_LOC		"Génération de &cThermLabel terminée !"
+	#DEFINE C_THERMLABEL_LOC		"Génération de &cThermLabel"
+#ELIF VERSION(3) == "49"	&& german
 	#DEFINE ERRORMESSAGE_LOC "Fehler Nr. " + TRANSFORM(m.nError) + " in " + m.cMethod +	" (" + TRANSFORM(m.nLine) + "): " + m.cMessage
 	#DEFINE ERRORTITLE_LOC "Programmfehler"
 	#DEFINE ERR_ALERTCONTINUE_LOC "Weiter?"
@@ -112,7 +143,7 @@
 	#DEFINE ERR_OVERWRITEREADONLY_LOC "Die Datei &cParameter1 ist schreibgeschützt. Überschreiben?"
 	#DEFINE ERR_TEXT2BINNOTSUPPORTED_LOC "Das Generieren von Binärdateien wird für Dateien vom Typ '&cType' nicht unterstützt."
 	#DEFINE ERR_UNSUPPORTEDFIELDTYPE_LOC "Feldtyp nicht unterstützt: "
-	#DEFINE ERR_UNSUPPORTEDFILETYPE_LOC "Dateityp nicht unterstützt: " 	
+	#DEFINE ERR_UNSUPPORTEDFILETYPE_LOC "Dateityp nicht unterstützt: "
 	* Used by the thermometer
 	#DEFINE C_BINARYCONVERSION_LOC	"Binärdaten werden konvertiert: &cBinaryProgress.%"
 	#DEFINE C_THERMCOMPLETE_LOC		"&cThermLabel generiert."
@@ -375,7 +406,7 @@ DEFINE CLASS SccTextEngine AS CUSTOM
 
 		IF m.iParmCount = 1 .AND. TYPE('m.cTableName') = 'C'
 			* Interpret the single parameter as a filename and be smart about defaults
-			IF THIS.IsBinary(m.cTableName)
+			IF THIS.ISBINARY(m.cTableName)
 				cType     = THIS.GetPrjType(m.cTableName)
 				cTextName = FORCEEXT(m.cTableName, THIS.GetAsciiExt(m.cType))
 				lGenText  = .T.
@@ -620,7 +651,7 @@ DEFINE CLASS SccTextEngine AS CUSTOM
 		RETURN INLIST(m.cExt, SCC_ASCII_FORM_EXT, SCC_ASCII_REPORT_EXT, SCC_ASCII_VCX_EXT, SCC_ASCII_MENU_EXT, SCC_ASCII_LABEL_EXT, SCC_ASCII_DBC_EXT)
 	ENDPROC
 
-	PROCEDURE IsBinary
+	PROCEDURE ISBINARY
 		PARAMETERS cFilename
 		LOCAL m.cExt
 		m.cExt = UPPER(JUSTEXT(m.cFilename))
@@ -1011,11 +1042,11 @@ DEFINE CLASS SccTextEngine AS CUSTOM
 					ENDDO
 
 					SELECT *, ;
-					PADR( LOWER(TRIM(parent)+IIF(EMPTY(TRIM(parent)),"",".")+IIF(LOWER(baseclass)="header","0","")+LOWER(objname)), 254 ) as SortOrder1, ;
-					PADR( SUBSTR(LOWER(TRIM(parent))+IIF(EMPTY(TRIM(parent)),"",".")+IIF(LOWER(baseclass)="header","0","")+LOWER(objname),255), 254 ) as SortOrder2, ;
-					PADR( SUBSTR(LOWER(TRIM(parent))+IIF(EMPTY(TRIM(parent)),"",".")+IIF(LOWER(baseclass)="header","0","")+LOWER(objname),509), 254 ) as SortOrder3 ;
-					FROM (cTempCursor) ORDER BY SortOrder1,SortOrder2,SortOrder3 INTO CURSOR (cTempCursor2) NOFILTER
-					
+						PADR( LOWER(TRIM(PARENT)+IIF(EMPTY(TRIM(PARENT)),"",".")+IIF(LOWER(BASECLASS)="header","0","")+LOWER(objname)), 254 ) AS SortOrder1, ;
+						PADR( SUBSTR(LOWER(TRIM(PARENT))+IIF(EMPTY(TRIM(PARENT)),"",".")+IIF(LOWER(BASECLASS)="header","0","")+LOWER(objname),255), 254 ) AS SortOrder2, ;
+						PADR( SUBSTR(LOWER(TRIM(PARENT))+IIF(EMPTY(TRIM(PARENT)),"",".")+IIF(LOWER(BASECLASS)="header","0","")+LOWER(objname),509), 254 ) AS SortOrder3 ;
+						FROM (cTempCursor) ORDER BY SortOrder1,SortOrder2,SortOrder3 INTO CURSOR (cTempCursor2) NOFILTER
+
 					SELECT (THIS.cVCXCursor)
 					APPEND FROM DBF(cTempCursor2)
 					SELECT (m.iSelect)
@@ -1057,21 +1088,21 @@ DEFINE CLASS SccTextEngine AS CUSTOM
 		* Create the temporary cursor
 		AFIELDS(laStruct)
 		CREATE CURSOR (THIS.cVCXCursor) FROM ARRAY laStruct
-		
-		IF VARTYPE( baseclass ) == "U"
-		
+
+		IF VARTYPE( BASECLASS ) == "U"
+
 			* This is a FP2x screen.
-			SELECT (This.cVCXCursor)
+			SELECT (THIS.cVCXCursor)
 			APPEND FROM (DBF( m.lnSelect ))
 			GO TOP		&& Clear buffer.
-		
+
 		ELSE
 
 			* Copy the header, dataenvironment, cursor, relation, and formset records
 			SELECT (m.lnSelect)
 			GO TOP
-			SCAN WHILE NOT LOWER(baseclass) == "form"
-				IF LOWER( baseclass ) == "formset"
+			SCAN WHILE NOT LOWER(BASECLASS) == "form"
+				IF LOWER( BASECLASS ) == "formset"
 					lcFormsetName = LOWER(objname) + "."
 				ENDIF
 				SCATTER MEMO TO laRec
@@ -1079,19 +1110,19 @@ DEFINE CLASS SccTextEngine AS CUSTOM
 			ENDSCAN
 
 			* Copy form by form
-			SCAN FOR LOWER(baseclass) == "form"
+			SCAN FOR LOWER(BASECLASS) == "form"
 				* Copy the record for the form itself
 				SCATTER MEMO TO laRec
 				INSERT INTO (THIS.cVCXCursor) FROM ARRAY laRec
 				* Sort the records of this form by object path
 				lcThisForm = m.lcFormsetName + LOWER(objname) + "."
 				SELECT RECNO(), ;
-					PADR( LOWER(TRIM(parent)+IIF(EMPTY(TRIM(parent)),"",".")+IIF(LOWER(baseclass)="header","0","")+LOWER(objname)), 254 ), ;
-					PADR( SUBSTR(LOWER(TRIM(parent))+IIF(EMPTY(TRIM(parent)),"",".")+IIF(LOWER(baseclass)="header","0","")+LOWER(objname),255), 254 ), ;
-					PADR( SUBSTR(LOWER(TRIM(parent))+IIF(EMPTY(TRIM(parent)),"",".")+IIF(LOWER(baseclass)="header","0","")+LOWER(objname),509), 254 ), ;
+					PADR( LOWER(TRIM(PARENT)+IIF(EMPTY(TRIM(PARENT)),"",".")+IIF(LOWER(BASECLASS)="header","0","")+LOWER(objname)), 254 ), ;
+					PADR( SUBSTR(LOWER(TRIM(PARENT))+IIF(EMPTY(TRIM(PARENT)),"",".")+IIF(LOWER(BASECLASS)="header","0","")+LOWER(objname),255), 254 ), ;
+					PADR( SUBSTR(LOWER(TRIM(PARENT))+IIF(EMPTY(TRIM(PARENT)),"",".")+IIF(LOWER(BASECLASS)="header","0","")+LOWER(objname),509), 254 ), ;
 					PADR( uniqueid, FSIZE("uniqueid") ) ;
 					FROM DBF() ;
-					WHERE PADR( LOWER(parent), LEN(m.lcThisForm), "." ) == m.lcThisForm ;
+					WHERE PADR( LOWER(PARENT), LEN(m.lcThisForm), "." ) == m.lcThisForm ;
 					INTO ARRAY laForm ;
 					ORDER BY 2,3,4,5
 				* Copy the records of this form
@@ -1102,21 +1133,21 @@ DEFINE CLASS SccTextEngine AS CUSTOM
 				ENDFOR
 				SELECT (m.lnSelect)
 			ENDSCAN
-			
+
 			* Copy the footer record
 			GO BOTTOM
 			SCATTER MEMO TO laRec
 			INSERT INTO (THIS.cVCXCursor) FROM ARRAY laRec
 			GO TOP
-			
+
 			* All records copied?
 			ASSERT RECCOUNT(THIS.cVCXCursor) == m.lnRecCount MESSAGE ;
 				"Error in CreateScxCursor: " + ;
-				LTRIM(STR( m.lnRecCount - RECCOUNT(This.cVCXCursor) )) + ;
+				LTRIM(STR( m.lnRecCount - RECCOUNT(THIS.cVCXCursor) )) + ;
 				" records of " + DBF(m.lnSelect) + " ignored."
-		
+
 		ENDIF
-		
+
 		* Close the original file and use the cursor we've created
 		USE IN (m.lnSelect)
 
@@ -1417,7 +1448,7 @@ DEFINE CLASS SccTextEngine AS CUSTOM
 		PRIVATE i, bIsBinary, cMemo
 		cMemo     = &cFieldname
 		bIsBinary = .T.
-		
+
 		DO CASE
 			CASE CHR(0) $ m.cMemo
 			OTHERWISE
@@ -1553,7 +1584,7 @@ DEFINE CLASS SccTextEngine AS CUSTOM
 				ASORT(laMethods)
 			ELSE
 				ASORT(laMethods,-1,-1,0,1)
-			ENDIF		
+			ENDIF
 		ENDIF
 
 		* recreate the methods in method name order
@@ -1576,7 +1607,7 @@ DEFINE CLASS SccTextEngine AS CUSTOM
 	PROCEDURE SortProperties(tcProperties)
 		* sort Properties by name
 		LOCAL laProperties[1], lnProperties, lnLine
-	
+
 		* sanity checks
 		ASSERT TYPE("tcProperties") == 'C'
 		IF EMPTY(tcProperties)
@@ -1596,7 +1627,7 @@ DEFINE CLASS SccTextEngine AS CUSTOM
 			ASORT(laProperties)
 		ELSE
 			ASORT(laProperties,-1,-1,0,1)
-		ENDIF		
+		ENDIF
 
 		* recreate the Properties in method name order
 		tcProperties = ""
@@ -1607,7 +1638,7 @@ DEFINE CLASS SccTextEngine AS CUSTOM
 		RETURN m.tcProperties
 
 	ENDFUNC
-	
+
 	PROCEDURE HexStr2BinStr
 		PARAMETERS cHexStr
 
@@ -1616,9 +1647,9 @@ DEFINE CLASS SccTextEngine AS CUSTOM
 		cBinStr = ""
 		cHexTable = "0123456789ABCDEF"
 
-	    FOR i = 1 TO LEN(m.cHexStr) STEP 2
-	    	cChar1 = SUBSTR(m.cHexStr, m.i   , 1)
-	    	cChar2 = SUBSTR(m.cHexStr, m.i +1, 1)    	
+		FOR i = 1 TO LEN(m.cHexStr) STEP 2
+			cChar1 = SUBSTR(m.cHexStr, m.i   , 1)
+			cChar2 = SUBSTR(m.cHexStr, m.i +1, 1)
 			cBinStr = m.cBinStr + CHR((ATC(m.cChar1, m.cHexTable)-1) * 16 + ATC(m.cChar2, m.cHexTable)-1)
 		ENDFOR
 
@@ -1736,21 +1767,21 @@ DEFINE CLASS thermometer AS FORM
 	shpThermbarMaxWidth = 322
 
 	* Outer Border
-	ADD OBJECT cntBorder1 AS Container WITH ;
-		SpecialEffect = 1,;
-		Left          = 2 ,;
-		Top           = 2 ,;
-		Height        = Thisform.Height - 4 ,;
-		Width         = Thisform.Width - 4
-		
+	ADD OBJECT cntBorder1 AS CONTAINER WITH ;
+		SPECIALEFFECT = 1,;
+		LEFT          = 2 ,;
+		TOP           = 2 ,;
+		HEIGHT        = THISFORM.HEIGHT - 4 ,;
+		WIDTH         = THISFORM.WIDTH - 4
+
 	* Thermometer bar Border
-	ADD OBJECT cntBorder2 AS Container WITH ;
-		SpecialEffect = 1,;
-		Left          = 14 ,;
-		Top           = 44 ,;
-		Height        = 20 ,;
-		Width         = 327
-		
+	ADD OBJECT cntBorder2 AS CONTAINER WITH ;
+		SPECIALEFFECT = 1,;
+		LEFT          = 14 ,;
+		TOP           = 44 ,;
+		HEIGHT        = 20 ,;
+		WIDTH         = 327
+
 	ADD OBJECT lbltitle AS LABEL WITH ;
 		BACKSTYLE = 0, ;
 		CAPTION   = "", ;
@@ -1830,8 +1861,8 @@ DEFINE CLASS thermometer AS FORM
 	PROCEDURE UpdateTaskMessage
 		&& Update the task message only, used when converting binary data
 		PARAMETERS cTask
-		THIS.ccurrenttask = m.cTask
-		THIS.lbltask.CAPTION = THIS.ccurrenttask
+		THIS.cCurrentTask = m.cTask
+		THIS.lbltask.CAPTION = THIS.cCurrentTask
 	ENDPROC
 
 	PROCEDURE UPDATE
@@ -1843,56 +1874,56 @@ DEFINE CLASS thermometer AS FORM
 		IF PCOUNT() >= 2 .AND. TYPE('m.cTask') = 'C'
 			&& If we're specifically passed a null string, clear the current task,
 			&& otherwise leave it alone
-			THIS.ccurrenttask = m.cTask
+			THIS.cCurrentTask = m.cTask
 		ENDIF
 
-		IF NOT THIS.lbltask.CAPTION == THIS.ccurrenttask
-			THIS.lbltask.CAPTION = THIS.ccurrenttask
+		IF NOT THIS.lbltask.CAPTION == THIS.cCurrentTask
+			THIS.lbltask.CAPTION = THIS.cCurrentTask
 		ENDIF
 
 		IF THIS.iBasis <> 0
 			&& interpret m.iProgress in terms of this.iBasis
-			ipercentage = INT((m.iProgress / THIS.iBasis) * 100)
+			iPercentage = INT((m.iProgress / THIS.iBasis) * 100)
 		ELSE
-			ipercentage = m.iProgress
+			iPercentage = m.iProgress
 		ENDIF
 
-		ipercentage = MIN(100,MAX(0,m.ipercentage))
+		iPercentage = MIN(100,MAX(0,m.iPercentage))
 
-		IF m.ipercentage = THIS.ipercentage
+		IF m.iPercentage = THIS.iPercentage
 			RETURN
 		ENDIF
 
-		IF LEN(ALLTRIM(STR(m.ipercentage,3)))<>LEN(ALLTRIM(STR(THIS.ipercentage,3)))
-			iAvgCharWidth = FONTMETRIC(6,THIS.lblpercentage.FONTNAME, ;
-				THIS.lblpercentage.FONTSIZE, ;
-				IIF(THIS.lblpercentage.FONTBOLD,'B','')+ ;
-				IIF(THIS.lblpercentage.FONTITALIC,'I',''))
-				
-			THIS.lblpercentage.WIDTH = TXTWIDTH(ALLTRIM(STR(m.ipercentage,3)) + '%', ;
-				THIS.lblpercentage.FONTNAME,THIS.lblpercentage.FONTSIZE, ;
-				IIF(THIS.lblpercentage.FONTBOLD,'B','')+ ;
-				IIF(THIS.lblpercentage.FONTITALIC,'I','')) * iAvgCharWidth
-				
-			THIS.lblpercentage.LEFT  = INT((THIS.shpthermbarmaxwidth- THIS.lblpercentage.WIDTH) / 2)+THIS.shpthermbar.LEFT-1
-			THIS.lblpercentage2.LEFT = THIS.lblpercentage.LEFT
-			
+		IF LEN(ALLTRIM(STR(m.iPercentage,3)))<>LEN(ALLTRIM(STR(THIS.iPercentage,3)))
+			iAvgCharWidth = FONTMETRIC(6,THIS.lblPercentage.FONTNAME, ;
+				THIS.lblPercentage.FONTSIZE, ;
+				IIF(THIS.lblPercentage.FONTBOLD,'B','')+ ;
+				IIF(THIS.lblPercentage.FONTITALIC,'I',''))
+
+			THIS.lblPercentage.WIDTH = TXTWIDTH(ALLTRIM(STR(m.iPercentage,3)) + '%', ;
+				THIS.lblPercentage.FONTNAME,THIS.lblPercentage.FONTSIZE, ;
+				IIF(THIS.lblPercentage.FONTBOLD,'B','')+ ;
+				IIF(THIS.lblPercentage.FONTITALIC,'I','')) * iAvgCharWidth
+
+			THIS.lblPercentage.LEFT  = INT((THIS.shpThermbarMaxWidth- THIS.lblPercentage.WIDTH) / 2)+THIS.shpThermbar.LEFT-1
+			THIS.lblPercentage2.LEFT = THIS.lblPercentage.LEFT
+
 		ENDIF
-		
-		THIS.shpthermbar.WIDTH      = INT((THIS.shpthermbarmaxwidth)*m.ipercentage/100)
-		THIS.lblpercentage.CAPTION  = ALLTRIM(STR(m.ipercentage,3)) + '%'
-		THIS.lblpercentage2.CAPTION = THIS.lblpercentage.CAPTION
-		
-		IF THIS.shpthermbar.LEFT + THIS.shpthermbar.WIDTH -1 >= THIS.lblpercentage2.LEFT
-			IF THIS.shpthermbar.LEFT + THIS.shpthermbar.WIDTH - 1 >= THIS.lblpercentage2.LEFT + THIS.lblpercentage.WIDTH - 1
-				THIS.lblpercentage2.WIDTH = THIS.lblpercentage.WIDTH
+
+		THIS.shpThermbar.WIDTH      = INT((THIS.shpThermbarMaxWidth)*m.iPercentage/100)
+		THIS.lblPercentage.CAPTION  = ALLTRIM(STR(m.iPercentage,3)) + '%'
+		THIS.lblPercentage2.CAPTION = THIS.lblPercentage.CAPTION
+
+		IF THIS.shpThermbar.LEFT + THIS.shpThermbar.WIDTH -1 >= THIS.lblPercentage2.LEFT
+			IF THIS.shpThermbar.LEFT + THIS.shpThermbar.WIDTH - 1 >= THIS.lblPercentage2.LEFT + THIS.lblPercentage.WIDTH - 1
+				THIS.lblPercentage2.WIDTH = THIS.lblPercentage.WIDTH
 			ELSE
-				THIS.lblpercentage2.WIDTH = THIS.shpthermbar.LEFT + THIS.shpthermbar.WIDTH - THIS.lblpercentage2.LEFT - 1
+				THIS.lblPercentage2.WIDTH = THIS.shpThermbar.LEFT + THIS.shpThermbar.WIDTH - THIS.lblPercentage2.LEFT - 1
 			ENDIF
 		ELSE
-			THIS.lblpercentage2.WIDTH = 0
+			THIS.lblPercentage2.WIDTH = 0
 		ENDIF
-		THIS.ipercentage = m.ipercentage
+		THIS.iPercentage = m.iPercentage
 	ENDPROC
 
 	PROCEDURE INIT
@@ -1900,7 +1931,7 @@ DEFINE CLASS thermometer AS FORM
 		&& m.cTitle is displayed on the first line of the window
 		&& m.iInterval is the frequency used for updating the thermometer
 
-		THIS.lblTitle.CAPTION = IIF(EMPTY(m.cTitle),'',m.cTitle)
+		THIS.lbltitle.CAPTION = IIF(EMPTY(m.cTitle),'',m.cTitle)
 		LOCAL cColor
 
 		&& Check to see if the fontmetrics for MS Sans Serif matches
@@ -1917,3 +1948,6 @@ DEFINE CLASS thermometer AS FORM
 ENDDEFINE
 
 
+************************************************************
+* EOF
+************************************************************
