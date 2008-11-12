@@ -115,6 +115,8 @@
 #DEFINE C_WRITECHECKSUMS .T.
  
 #define SCCTEXTVER_LOC "SCCTEXT Version 4.0.0.2" && changing this will get problems with already generated files, see PROC CheckVersion()
+#DEFINE SCCTEXTXVER_LOC "SccTextX Version 1.0.0.1"
+
 #DEFINE ALERTTITLE_LOC "Microsoft Visual FoxPro"
 
 
@@ -1029,7 +1031,8 @@ DEFINE CLASS SccTextEngine AS CUSTOM
 
 	************************************************************
 	PROCEDURE ValidVersion(cVersion)
-		IF  NOT  m.cVersion == SCCTEXTVER_LOC
+		&& added additional check because of woody's fault ;) 
+		IF  NOT ( m.cVersion == SCCTEXTVER_LOC OR m.cVersion == SCCTEXTXVER_LOC )
 			THIS.CANCEL(ERR_BADVERSION_LOC)
 		ENDIF
 	ENDPROC
