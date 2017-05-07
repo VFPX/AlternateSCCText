@@ -1,7 +1,7 @@
 # Alternate SCCText
 **Improved source code control to text program for use with Visual FoxPro's IDE.**
 
-Project Manager: Jürgen Wondzinski, aka "wOOdy"
+Project Manager: [Jürgen Wondzinski](https://github.com/Woody-Soft), aka "wOOdy"
 
 This new and improved version of the source code control to text program was developed years ago by ProLib and released for all Visual FoxPro developers to have a better source code control experience.
 
